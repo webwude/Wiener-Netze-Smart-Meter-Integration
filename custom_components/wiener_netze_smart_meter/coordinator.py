@@ -15,6 +15,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import UnitOfEnergy
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.util.unit_conversion import EnergyConverter
 from wiener_netze_smart_meter_api import WNAPIClient
 from wiener_netze_smart_meter_api.exceptions import WNAPIAuthenticationError
 
@@ -44,6 +45,16 @@ try:
     _MEAN_FIELD = {"mean_type": StatisticMeanType.NONE}
 except ImportError:  # HA without StatisticMeanType
     _MEAN_FIELD = {"has_mean": False}
+
+# HA 2025.x added unit_class to StatisticMetaData; from 2026.11 it is required
+# (async_add_external_statistics warns "doesn't specify unit_class" and the
+# fallback that derives it from the unit is removed). Only pass it on cores
+# that know the field, so older cores keep working.
+_HAS_UNIT_CLASS = "unit_class" in getattr(StatisticMetaData, "__annotations__", {})
+
+
+def _unit_class_field(unit_class: str | None) -> dict[str, str | None]:
+    return {"unit_class": unit_class} if _HAS_UNIT_CLASS else {}
 
 
 class WNSmartMeterCoordinator(DataUpdateCoordinator[dict[str, MeterReading]]):
@@ -99,6 +110,7 @@ class WNSmartMeterCoordinator(DataUpdateCoordinator[dict[str, MeterReading]]):
             source=DOMAIN,
             statistic_id=f"{DOMAIN}:{zaehlpunkt.lower()}_hourly_energy",
             unit_of_measurement=UnitOfEnergy.WATT_HOUR,
+            **_unit_class_field(EnergyConverter.UNIT_CLASS),
         )
 
     def _cost_metadata(self, zaehlpunkt: str) -> StatisticMetaData:
@@ -109,6 +121,8 @@ class WNSmartMeterCoordinator(DataUpdateCoordinator[dict[str, MeterReading]]):
             source=DOMAIN,
             statistic_id=f"{DOMAIN}:{zaehlpunkt.lower()}_hourly_cost",
             unit_of_measurement=COST_CURRENCY,
+            # Currency has no unit converter in HA -> unit_class None.
+            **_unit_class_field(None),
         )
 
     async def _last_sum(self, statistic_id: str) -> tuple[float, datetime | None]:
