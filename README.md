@@ -4,6 +4,8 @@ A [HACS](https://hacs.xyz/) custom integration that brings your **Wiener Netze**
 smart meter data into Home Assistant using the **official** Wiener Netze Smart
 Meter API.
 
+This is a fork due to HA 2026.11 update
+
 It is a thin Home Assistant layer on top of
 [tschoerk's `wiener-netze-smart-meter-api`](https://github.com/tschoerk/Wiener-Netze-Smart-Meter-API)
 package (installed automatically from PyPI), which talks to the official
